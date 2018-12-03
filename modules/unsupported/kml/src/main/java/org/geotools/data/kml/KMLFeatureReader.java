@@ -19,6 +19,8 @@ package org.geotools.data.kml;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
@@ -37,6 +39,7 @@ import org.opengis.feature.simple.SimpleFeatureType;
  * @source $URL$
  */
 public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, SimpleFeature> {
+
     private static final Logger LOGGER = Logging.getLogger("org.geotools.data.property");
 
     SimpleFeatureType type = null;
@@ -44,6 +47,17 @@ public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, Simple
     // PullParser parser;
     StreamingParser parser;
     FileInputStream fis;
+
+    private KMLFeatureSource source;
+    private ArrayList<SimpleFeature> features;
+    private Iterator<SimpleFeature> iterator;
+
+    public KMLFeatureReader(ArrayList<SimpleFeature> features, KMLFeatureSource source)
+            throws IOException {
+        this.features = features;
+        this.iterator = features.iterator();
+        this.source = source;
+    }
 
     public KMLFeatureReader(String namespace, File file, QName name) throws IOException {
         fis = new FileInputStream(file);
@@ -57,6 +71,9 @@ public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, Simple
     }
 
     public SimpleFeatureType getFeatureType() {
+        if (source != null) {
+            return source.getSchema();
+        }
         return type;
     }
 
@@ -71,6 +88,11 @@ public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, Simple
         if (!hasNext()) {
             throw new NoSuchElementException();
         }
+
+        if (iterator != null) {
+            return iterator.next();
+        }
+
         SimpleFeature next = f;
         forward();
         return next;
@@ -91,6 +113,9 @@ public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, Simple
      * @throws IOException DOCUMENT ME!
      */
     public boolean hasNext() throws IOException {
+        if (iterator != null) {
+            return iterator.hasNext();
+        }
         return f != null;
     }
 
@@ -102,5 +127,9 @@ public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, Simple
      */
     public void close() throws IOException {
         fis.close();
+
+        if (iterator != null) {
+            iterator = features.iterator();
+        }
     }
 }

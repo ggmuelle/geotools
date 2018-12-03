@@ -19,9 +19,13 @@ package org.geotools.data.kml;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.Serializable;
+import java.net.URL;
+import java.util.HashMap;
 import java.util.Map;
 import org.geotools.data.DataStore;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.data.FileDataStore;
+import org.geotools.data.FileDataStoreFactorySpi;
 
 /**
  * DataStore factory that creates {@linkplain org.geotools.data.kml.KMLDataStore}s
@@ -29,7 +33,9 @@ import org.geotools.data.DataStoreFactorySpi;
  * @author NielsCharlier, Scitus Development
  * @source $URL$
  */
-public class KMLDataStoreFactory implements DataStoreFactorySpi {
+public class KMLDataStoreFactory implements FileDataStoreFactorySpi {
+
+    public static final String[] EXTENSIONS = new String[] {".kml"};
 
     public static final Param FILE = new Param("file", File.class, "Property file", true);
 
@@ -37,7 +43,7 @@ public class KMLDataStoreFactory implements DataStoreFactorySpi {
             new Param("namespace", String.class, "namespace of datastore", false);
 
     public DataStore createDataStore(Map params) throws IOException {
-        File file = fileLookup(params);
+        File file = fileLookup((File) FILE.lookUp(params));
         String namespaceURI = (String) NAMESPACE.lookUp(params);
         if (file.exists() && !file.isDirectory()) {
             return new KMLDataStore(file, namespaceURI);
@@ -85,22 +91,6 @@ public class KMLDataStoreFactory implements DataStoreFactorySpi {
         return true;
     }
 
-    /**
-     * Works for a file directory or property file
-     *
-     * @param params Connection parameters
-     * @return true for connection parameters indicating a directory or property file
-     */
-    public boolean canProcess(Map params) {
-        try {
-            fileLookup(params);
-            return true;
-        } catch (Exception erp) {
-            // can't process, just return false
-            return false;
-        }
-    }
-
     /** No implementation hints are provided at this time. */
     public Map getImplementationHints() {
         return java.util.Collections.EMPTY_MAP;
@@ -120,15 +110,20 @@ public class KMLDataStoreFactory implements DataStoreFactorySpi {
      * @throws IOException if {@linkplain #DIRECTORY} doesn't find parameter in <code>params</code>
      *     file does not exists.
      */
-    private File fileLookup(Map params)
+    private File fileLookup(File file)
             throws IOException, FileNotFoundException, IllegalArgumentException {
-        File file = (File) FILE.lookUp(params);
+        if (!file.getName().endsWith(EXTENSIONS[0])) {
+            throw new IllegalArgumentException(
+                    "File seems not be a KML file (wrong extension): " + file.getAbsolutePath());
+        }
+
         if (file.exists()) {
             if (file.isDirectory()) {
                 throw new IllegalArgumentException(
-                        "Property file is required (not a directory) " + file.getAbsolutePath());
+                        "File is required (not a directory): " + file.getAbsolutePath());
             }
             return file;
+
         } else {
             File dir = file.getParentFile();
             if (dir == null || !dir.exists()) {
@@ -142,5 +137,58 @@ public class KMLDataStoreFactory implements DataStoreFactorySpi {
             }
             return file;
         }
+    }
+
+    @Override
+    public String[] getFileExtensions() {
+        return EXTENSIONS;
+    }
+
+    /**
+     * Works for a file directory or property file
+     *
+     * @param params Connection parameters
+     * @return true for connection parameters indicating a directory or property file
+     */
+    public boolean canProcess(Map params) {
+        try {
+            fileLookup((File) FILE.lookUp(params));
+            return true;
+        } catch (Exception erp) {
+            // can't process, just return false
+            return false;
+        }
+    }
+
+    @Override
+    public boolean canProcess(URL url) {
+        try {
+            fileLookup(new File(url.toURI()));
+            return true;
+        } catch (Exception erp) {
+            // can't process, just return false
+            return false;
+        }
+    }
+
+    @Override
+    public FileDataStore createDataStore(URL url) throws IOException {
+        try {
+            Map<String, Serializable> params = new HashMap<>();
+            params.put(FILE.key, new File(url.toURI()));
+            return (FileDataStore) createDataStore(params);
+
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public String getTypeName(URL url) throws IOException {
+        DataStore ds = createDataStore(url);
+        String[] names = ds.getTypeNames();
+        assert names.length == 1 : "Invalid number of type names for KML file store";
+        ds.dispose();
+        return names[0];
     }
 }

@@ -42,6 +42,7 @@ import org.opengis.feature.type.Name;
  * @source $URL$
  */
 public class KMLDataStore extends ContentDataStore {
+
     protected File file;
 
     public KMLDataStore(File file) {
