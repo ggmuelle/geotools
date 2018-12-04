@@ -19,70 +19,80 @@ package org.geotools.data.kml;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.UUID;
 
-import org.geotools.data.FeatureReader;
+import org.geotools.data.DataUtilities;
+import org.geotools.data.FeatureWriter;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 
 /**
- * Read a KML file directly.
- *
- * @author Niels Charlier, Scitus Development
  * @author Gerd Müller-Schramm, Hexagon AB
- * @source $URL$
  */
-public class KMLFeatureReader implements FeatureReader<SimpleFeatureType, SimpleFeature> {
+public class KMLFeatureWriter implements FeatureWriter<SimpleFeatureType, SimpleFeature> {
 
     private KMLFeatureSource source;
-    private ArrayList<SimpleFeature> features;
     private Iterator<SimpleFeature> iterator;
+    private ArrayList<SimpleFeature> features;
+    protected SimpleFeature currentFeature;
 
-    public KMLFeatureReader(ArrayList<SimpleFeature> features, KMLFeatureSource source)
-            throws IOException {
+
+    public KMLFeatureWriter( ArrayList<SimpleFeature> features, KMLFeatureSource featureSource ) {
         this.features = new ArrayList<>(features);
         this.iterator = this.features.iterator();
-        this.source = source;
+        this.source = featureSource;
     }
+
 
     @Override
     public SimpleFeatureType getFeatureType() {
         return source.getSchema();
     }
 
-    /**
-     * Grab the next feature from the property file.
-     *
-     * @return feature
-     * @throws IOException
-     * @throws NoSuchElementException Check hasNext() to avoid reading off the end of the file
-     */
-    @Override
-    public SimpleFeature next() throws IOException, NoSuchElementException {
-        if (!hasNext()) {
-            throw new NoSuchElementException();
-        }
 
-        return iterator.next();
-    }
-
-    /**
-     * @see FeatureReader#hasNext()
-     */
     @Override
     public boolean hasNext() throws IOException {
         return iterator.hasNext();
     }
 
-    /**
-     * Be sure to call close when you are finished with this reader; as it must close the file it
-     * has open.
-     *
-     * @throws IOException
-     */
+
+    @Override
+    public SimpleFeature next() throws IOException {
+        if (hasNext()) {
+            return (currentFeature = iterator.next());
+        }
+        
+        return (currentFeature = DataUtilities.template(getFeatureType(), 
+                UUID.randomUUID().toString(), 
+                new Object[source.getSchema().getAttributeCount()]));
+    }
+
+
+    @Override
+    public void remove() throws IOException {
+        if (currentFeature == null) {
+            throw new IOException( "Current feature is null" );
+        }
+
+        source.removeFeature( currentFeature );
+        currentFeature = null;
+    }
+
+
+    @Override
+    public void write() throws IOException {
+        if (currentFeature == null) {
+            throw new IOException( "Current feature is null" );
+        }
+        
+        source.addFeature( currentFeature );
+    }
+
+
     @Override
     public void close() throws IOException {
         iterator = features.iterator();
+        source.writeKmlFile();
     }
-    
+
 }

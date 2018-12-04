@@ -33,23 +33,24 @@ import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.type.FeatureTypeFactoryImpl;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.Name;
 
 /**
  * KMLDataStore implementation
  *
  * @author Niels Charlier, Scitus Development
+ * @author Gerd Müller-Schramm, Hexagon AB
  * @source $URL$
  */
 public class KMLDataStore extends ContentDataStore {
-
-    protected File file;
+    
+    private File file;
 
     public KMLDataStore(File file) {
         this(file, null);
     }
 
-    // constructor start
     public KMLDataStore(File file, String namespaceURI) {
         if (file.isDirectory()) {
             throw new IllegalArgumentException(file + " must be a KML file");
@@ -61,16 +62,15 @@ public class KMLDataStore extends ContentDataStore {
         }
         this.file = file;
         setNamespaceURI(namespaceURI);
-        //
+
         // factories
         setFilterFactory(CommonFactoryFinder.getFilterFactory(null));
         setGeometryFactory(new GeometryFactory());
         setFeatureTypeFactory(new FeatureTypeFactoryImpl());
         setFeatureFactory(CommonFactoryFinder.getFeatureFactory(null));
     }
-    // constructor end
 
-    // info start
+    @Override
     public ServiceInfo getInfo() {
         DefaultServiceInfo info = new DefaultServiceInfo();
         info.setDescription("Features from " + file);
@@ -83,13 +83,17 @@ public class KMLDataStore extends ContentDataStore {
         return info;
     }
 
-    // info end
-
     public void setNamespaceURI(String namespaceURI) {
         this.namespaceURI = namespaceURI;
     }
+    
+    @Override
+    public void createSchema( SimpleFeatureType featureType ) throws IOException {
+        // do nothing since KML has a fixed schema
+    }
 
-    protected java.util.List<Name> createTypeNames() throws IOException {
+    @Override
+    protected List<Name> createTypeNames() throws IOException {
         String name = file.getName();
         String typeName = name.substring(0, name.lastIndexOf('.'));
         List<Name> typeNames = new ArrayList<Name>();
@@ -97,6 +101,7 @@ public class KMLDataStore extends ContentDataStore {
         return typeNames;
     }
 
+    @Override
     public List<Name> getNames() throws IOException {
         String[] typeNames = getTypeNames();
         List<Name> names = new ArrayList<Name>(typeNames.length);
@@ -108,10 +113,7 @@ public class KMLDataStore extends ContentDataStore {
 
     @Override
     protected ContentFeatureSource createFeatureSource(ContentEntry entry) throws IOException {
-        if (file.canWrite()) {
-            return new KMLFeatureSource(entry, Query.ALL);
-        } else {
-            return new KMLFeatureSource(entry, Query.ALL);
-        }
+        return new KMLFeatureSource(entry, Query.ALL);
     }
+
 }
