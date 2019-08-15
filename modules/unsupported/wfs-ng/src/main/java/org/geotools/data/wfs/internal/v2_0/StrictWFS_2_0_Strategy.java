@@ -525,6 +525,19 @@ public class StrictWFS_2_0_Strategy extends AbstractWFSStrategy {
 
         Set<String> serverSupportedFormats;
         serverSupportedFormats = findParameters(operationMetadata, parameterName);
+
+        if (serverSupportedFormats.isEmpty()) {
+            switch (operation) {
+                case GET_FEATURE:
+                case DESCRIBE_FEATURETYPE:
+                case GET_FEATURE_WITH_LOCK:
+                    serverSupportedFormats.add(PREFERRED_FORMATS.get(0));
+                    break;
+                default:
+                    break;
+            }
+        }
+
         return serverSupportedFormats;
     }
 

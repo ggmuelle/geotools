@@ -612,6 +612,19 @@ public class StrictWFS_1_x_Strategy extends AbstractWFSStrategy {
 
         Set<String> serverSupportedFormats;
         serverSupportedFormats = findParameters(operationMetadata, parameterName);
+
+        if (serverSupportedFormats.isEmpty()) {
+            switch (operation) {
+                case GET_FEATURE:
+                case DESCRIBE_FEATURETYPE:
+                case GET_FEATURE_WITH_LOCK:
+                    serverSupportedFormats.add("application/gml+xml; version=3.2");
+                    break;
+                default:
+                    break;
+            }
+        }
+
         return serverSupportedFormats;
     }
 
